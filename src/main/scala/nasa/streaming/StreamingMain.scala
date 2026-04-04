@@ -50,7 +50,7 @@ object StreamingMain {
       .format("kafka")
       .option("kafka.bootstrap.servers", StreamingConfig.KAFKA_BOOTSTRAP_SERVERS)
       .option("subscribe", StreamingConfig.KAFKA_TOPIC)
-      .option("startingOffsets", "latest")
+      .option("startingOffsets", "earliest")
       .option("failOnDataLoss", "false")
       .load()
 

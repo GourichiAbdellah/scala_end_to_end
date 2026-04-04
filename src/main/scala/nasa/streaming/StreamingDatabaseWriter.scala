@@ -5,12 +5,12 @@ import java.util.Properties
 
 object StreamingDatabaseWriter {
 
-  private val url = "jdbc:postgresql://localhost:5432/nasa_pipeline"
+  private val url = sys.env.getOrElse("POSTGRES_URL", "jdbc:postgresql://localhost:5432/nasa_pipeline")
 
   private def connectionProperties(): Properties = {
     val props = new Properties()
-    props.setProperty("user", "spark_user")
-    props.setProperty("password", "motdepasse")
+    props.setProperty("user", sys.env.getOrElse("POSTGRES_USER", "spark_user"))
+    props.setProperty("password", sys.env.getOrElse("POSTGRES_PASSWORD", "motdepasse"))
     props.setProperty("driver", "org.postgresql.Driver")
     props
   }

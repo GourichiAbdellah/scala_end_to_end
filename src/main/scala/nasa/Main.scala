@@ -29,19 +29,25 @@ object Main {
     val rawLogs = DataIngestion.loadNasaLogs(spark, "data/data.csv")
     val geoBlocks = DataIngestion.loadGeoBlocks(spark, "data/GeoLite2-Country-Blocks-IPv4.csv")
     val geoLocations = DataIngestion.loadGeoLocations(spark, "data/GeoLite2-Country-Locations-en.csv")
-    println(s"  Logs bruts: ${rawLogs.count()} lignes")
+    rawLogs.cache()
+    val rawCount = rawLogs.count()
+    println(s"  Logs bruts: $rawCount lignes")
     println(s"  Blocs geo: ${geoBlocks.count()} lignes")
     println(s"  Locations geo: ${geoLocations.count()} lignes")
 
     // ========== 2. NETTOYAGE ==========
     println("\n[2/6] Nettoyage des donnees...")
     val cleanedLogs = DataCleaning.clean(rawLogs)
-    println(s"  Logs apres nettoyage: ${cleanedLogs.count()} lignes")
+    rawLogs.unpersist()
+    cleanedLogs.cache()
+    val cleanedCount = cleanedLogs.count()
+    println(s"  Logs apres nettoyage: $cleanedCount lignes")
 
     // ========== 3. GEOLOCALISATION ==========
     println("\n[3/6] Geolocalisation des adresses IP...")
     IpUtils.registerUdfs(spark)
     val geoRanges = IpGeolocation.buildGeoRanges(spark, geoBlocks, geoLocations)
+    geoRanges.cache()
     println(s"  Plages geo construites: ${geoRanges.count()} plages")
     val geolocatedLogs = IpGeolocation.joinWithGeo(cleanedLogs, geoRanges)
 
@@ -50,6 +56,7 @@ object Main {
     val enrichedLogs = DataTransformation.enrich(geolocatedLogs)
 
     // Cache pour les analyses
+    cleanedLogs.unpersist()
     enrichedLogs.cache()
     val totalRows = enrichedLogs.count()
     println(s"  Logs enrichis: $totalRows lignes")
@@ -63,18 +70,18 @@ object Main {
       "traffic_by_country"        -> LogAnalysis.trafficByCountry(enrichedLogs),
       "traffic_by_continent"      -> LogAnalysis.trafficByContinent(enrichedLogs),
       "top_pages"                 -> LogAnalysis.topPages(enrichedLogs),
-      "error_analysis"            -> LogAnalysis.errorAnalysis(enrichedLogs),
+      "error_analysis"            -> LogAnalysis.errorAnalysis(enrichedLogs, totalRows),
       "hourly_traffic"            -> LogAnalysis.hourlyTraffic(enrichedLogs),
       "daily_traffic"             -> LogAnalysis.dailyTraffic(enrichedLogs),
       "day_of_week_traffic"       -> LogAnalysis.dayOfWeekTraffic(enrichedLogs),
       "bandwidth_by_category"     -> LogAnalysis.bandwidthByCategory(enrichedLogs),
       "top_hosts"                 -> LogAnalysis.topHosts(enrichedLogs),
-      "url_category_distribution" -> LogAnalysis.urlCategoryDistribution(enrichedLogs),
+      "url_category_distribution" -> LogAnalysis.urlCategoryDistribution(enrichedLogs, totalRows),
       "response_distribution"     -> LogAnalysis.responseDistribution(enrichedLogs),
       "country_hour_heatmap"      -> LogAnalysis.countryHourHeatmap(enrichedLogs),
       "top_error_pages"           -> LogAnalysis.topErrorPages(enrichedLogs),
       "daily_bandwidth"           -> LogAnalysis.dailyBandwidth(enrichedLogs),
-      "method_distribution"       -> LogAnalysis.methodDistribution(enrichedLogs)
+      "method_distribution"       -> LogAnalysis.methodDistribution(enrichedLogs, totalRows)
     )
 
     // Afficher un apercu de chaque analyse

@@ -1,11 +1,14 @@
 package nasa.streaming
 
 import java.util.Properties
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+import java.util.concurrent.atomic.AtomicLong
+import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.serialization.StringSerializer
 import scala.io.Source
 
 object KafkaLogProducer {
+
+  private val errorCount = new AtomicLong(0)
 
   def main(args: Array[String]): Unit = {
     val delayMs = if (args.length > 0) args(0).toLong else 10L
@@ -15,9 +18,22 @@ object KafkaLogProducer {
     props.put("bootstrap.servers", StreamingConfig.KAFKA_BOOTSTRAP_SERVERS)
     props.put("key.serializer", classOf[StringSerializer].getName)
     props.put("value.serializer", classOf[StringSerializer].getName)
-    props.put("acks", "1")
+    props.put("acks", "all")
+    props.put("retries", "3")
+    props.put("retry.backoff.ms", "1000")
 
     val producer = new KafkaProducer[String, String](props)
+
+    val callback = new Callback {
+      override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
+        if (exception != null) {
+          val errors = errorCount.incrementAndGet()
+          if (errors % 100 == 1) {
+            println(s"  [ERROR] Send failed ($errors total): ${exception.getMessage}")
+          }
+        }
+      }
+    }
 
     println("=" * 60)
     println("  NASA Log Kafka Producer")
@@ -46,7 +62,7 @@ object KafkaLogProducer {
           val record = new ProducerRecord[String, String](
             StreamingConfig.KAFKA_TOPIC, host, json
           )
-          producer.send(record)
+          producer.send(record, callback)
 
           count += 1
           if (count % 10000 == 0) println(s"  Sent $count records...")
@@ -59,9 +75,14 @@ object KafkaLogProducer {
       source.close()
     }
 
-    println(s"\nDone. Total records sent: $count")
+    val errors = errorCount.get()
+    println(s"\nDone. Total records sent: $count (errors: $errors)")
   }
 
   private def escape(s: String): String =
-    s.replace("\\", "\\\\").replace("\"", "\\\"")
+    s.replace("\\", "\\\\")
+      .replace("\"", "\\\"")
+      .replace("\n", "\\n")
+      .replace("\r", "\\r")
+      .replace("\t", "\\t")
 }

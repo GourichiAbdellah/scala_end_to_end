@@ -15,9 +15,13 @@ object IpUtils {
 
   def ipToLong(ip: String): Long = {
     if (ip == null) return -1L
-    val parts = ip.split("\\.")
-    if (parts.length != 4) return -1L
-    (parts(0).toLong << 24) + (parts(1).toLong << 16) + (parts(2).toLong << 8) + parts(3).toLong
+    try {
+      val parts = ip.split("\\.")
+      if (parts.length != 4) return -1L
+      (parts(0).toLong << 24) + (parts(1).toLong << 16) + (parts(2).toLong << 8) + parts(3).toLong
+    } catch {
+      case _: NumberFormatException => -1L
+    }
   }
 
   val isIpAddressUdf: UserDefinedFunction = udf(isIpAddress _)

@@ -42,8 +42,8 @@ object LogAnalysis {
   }
 
   // 4. Analyse des erreurs (distribution codes + pourcentage)
-  def errorAnalysis(df: DataFrame): DataFrame = {
-    val total = df.count().toDouble
+  def errorAnalysis(df: DataFrame, totalRows: Long = -1L): DataFrame = {
+    val total = (if (totalRows > 0) totalRows else df.count()).toDouble
     df.groupBy("response", "response_category")
       .agg(count("*").alias("requests"))
       .withColumn("percentage", round(col("requests") / lit(total) * 100, 2))
@@ -103,8 +103,8 @@ object LogAnalysis {
   }
 
   // 10. Distribution des categories URL
-  def urlCategoryDistribution(df: DataFrame): DataFrame = {
-    val total = df.count().toDouble
+  def urlCategoryDistribution(df: DataFrame, totalRows: Long = -1L): DataFrame = {
+    val total = (if (totalRows > 0) totalRows else df.count()).toDouble
     df.groupBy("url_category")
       .agg(count("*").alias("requests"))
       .withColumn("percentage", round(col("requests") / lit(total) * 100, 2))
@@ -154,8 +154,8 @@ object LogAnalysis {
   }
 
   // 15. Distribution des methodes HTTP
-  def methodDistribution(df: DataFrame): DataFrame = {
-    val total = df.count().toDouble
+  def methodDistribution(df: DataFrame, totalRows: Long = -1L): DataFrame = {
+    val total = (if (totalRows > 0) totalRows else df.count()).toDouble
     df.groupBy("method")
       .agg(count("*").alias("requests"))
       .withColumn("percentage", round(col("requests") / lit(total) * 100, 2))
