@@ -22,5 +22,4 @@ data/
 # Logs
 *.log
 
-# Claude internal
 CLAUDE.md
